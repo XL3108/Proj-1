@@ -1,0 +1,210 @@
+---
+title: "STAT5243_proj1"
+author: "Xinyun Li"
+date: '2022-09-15'
+output: html_document
+---
+
+## Step 0
+####  Import library we needed in analysis
+```{R message=FALSE, warning=FALSE}
+library(tibble)
+library(dplyr)
+library(tidyr)
+library(tidyverse)
+library(RColorBrewer)
+library(beeswarm)
+library(tm)
+library(SnowballC)
+library(wordcloud)
+library(sentimentr)
+library(syuzhet)
+source("C:/Users/12973/Desktop/STAT5243/Proj 1/lib/function.R")
+```
+
+#### Import philosophy dataset
+```{r}
+phi_data <- read.csv("C:/Users/12973/Desktop/STAT5243/Proj 1/data/philosophy_data.csv")
+summary(phi_data)
+```
+
+## STEP 1
+#### The data is somehow already cleaned but we are still missing one categorical feature that counts for number of words in sentences. In the dataset, we have sentence length that counts for the number of characters in sentences. However, it is relatively less meaning full that number of words in each sentence. Thus, it is important and we want to include it in our analysis.
+```{R}
+phi_data$Words <- count_word(phi_data$tokenized_txt)
+#filter meaningless sentences
+phi_data <- phi_data%>% filter(Words != 0)
+```
+
+## STEP 2
+#### First,we looked at the categorical features of our dataset.
+#### From the histogram, the capitalism, empiricalism, german idealism and rationalism have higher average sentence length.
+```{R}
+phi_byschool <- phi_data %>% group_by(school) %>% summarise(words_ave = mean(Words))
+ggplot(phi_byschool, aes(x=school, y=words_ave, fill=words_ave))+
+  geom_bar(stat="identity")+
+  theme(axis.text.x = element_text(angle = 90, size = 10))
+```
+### Title
+#### Note that the work "Discourse on Method" have highest sentence length.
+```{R}
+phi_bytitle <- phi_data %>% group_by(title) %>% summarise(words_ave = mean(Words))
+ggplot(phi_bytitle, aes(x=title, y=words_ave, fill=words_ave)) + geom_bar(stat="identity")+
+  theme(axis.text.x = element_text(angle = 90, size = 10))
+```
+
+#### Philosopher Descartes has highest average sentence length than others, we can guess that might come from his work"Discourse on Methodd",which has highest averge sentencen length than all other works in our dataset.
+
+```{R}
+phi_byauthor <- phi_data %>% group_by(author) %>% summarise(words_ave = mean(Words))
+ggplot(phi_byauthor, aes(x=author, y=words_ave, fill=words_ave)) + geom_bar(stat="identity")+
+  theme(axis.text.x = element_text(angle = 90, size = 10))
+
+```
+
+
+#### Top four school with longest average word counts
+```{R}
+phi_capt <- phi_data%>%filter(school == "capitalism")
+phi_emp <- phi_data%>%filter(school == "empiricism")
+phi_rat <- phi_data%>%filter(school == "rationalism")
+phi_ger <- phi_data%>% filter(school == "german_idealism")
+```
+
+### Capitalism: 
+#### Smith has longer sentence length in his capitalism works, typically most long sentences originate from his work "The Wealth of Nations"
+```{R}
+phi_capt$OrderedAuthor<- reorder(phi_capt$author,phi_capt$Words,mean,order = T)
+levels(phi_capt$OrderedAuthor)
+beeswarm(Words~OrderedAuthor,data = phi_capt,horizontal = TRUE,pch=16, 
+                  cex=0.55, cex.axis=1, cex.lab=1.2,col = alpha(brewer.pal(3,"Set1"),0.6),
+                  xlab="Number of words in a sentence.", ylab="",
+                  main="Capitalism Author")
+```
+#### Longest Sentences by Smith
+```{R}
+phi_capt %>% filter(author == "Smith", Words >= 150)%>%
+  select(title,sentence_str)%>% sample_n(4)
+```
+### Empiricalism. 
+#### Locke has longer sentence length in his Empiricalism works, typically most long sentences originate from his work "Second Treatise On Government"
+```{R}
+phi_emp$OrderedAuthor<- reorder(phi_emp$author,phi_emp$Words,mean,order = T)
+levels(phi_emp$OrderedAuthor)
+beeswarm(Words~OrderedAuthor,data = phi_emp,horizontal = TRUE,pch=16, 
+                  cex=0.55, cex.axis=1, cex.lab=1,col = alpha(brewer.pal(3,"Set1"),0.6),
+                  xlab="Number of words in a sentence.", ylab="",
+                  main="Empiricalism Author")
+```
+#### Longest Sentences by Locke
+```{R}
+phi_emp %>% filter(author == "Locke", Words >= 150)%>%
+  select(title,sentence_str)%>% sample_n(4)
+```
+### German Idealism
+#### Kant has longer sentence length in his German Idealism works, typically most long sentences originate from his work "Critique Of Pure Reason"
+```{R}
+phi_ger$OrderedAuthor<- reorder(phi_ger$author,phi_ger$Words,mean,order = T)
+levels(phi_ger$OrderedAuthor)
+
+beeswarm(Words~OrderedAuthor,data = phi_ger,horizontal = TRUE,pch=16, 
+                  cex=0.55, cex.axis=1, cex.lab=1,col = alpha(brewer.pal(4,"Set1"),0.6),
+                  xlab="Number of words in a sentence.", ylab="",
+                  main="Author")
+
+
+```
+#### Longest Sentences by Kant
+```{R}
+phi_ger %>% filter(author == "Kant", Words >= 150)%>%
+  select(title,sentence_str)%>% sample_n(4)
+```
+### Rationalism
+#### Descartes has longer sentence length in his Rationalism works, typically most long sentences originate from his work "Discourse On Method", which mathes our observations before.
+```{R}
+
+phi_rat$OrderedAuthor<- reorder(phi_rat$author,phi_rat$Words,mean,order = T)
+levels(phi_rat$OrderedAuthor)
+
+beeswarm(Words~OrderedAuthor,data = phi_rat,horizontal = TRUE,pch=16, 
+                  cex=0.55, cex.axis=1, cex.lab=1,col = alpha(brewer.pal(4,"Set1"),0.6),
+                  xlab="Number of words in a sentence.", ylab="",
+                  main="Author")
+
+```
+#### Longest Sentences by Descartes
+```{R}
+phi_rat %>% filter(author == "Descartes", Words >= 150)%>%
+  select(title,sentence_str)%>% sample_n(4)
+```
+
+
+# STEP3 Wordcloud
+## Wordcloud by schools.
+```{R warning=FALSE}
+school_list<- as.vector(levels(factor(phi_data$school)))
+school_list
+```
+ 
+#### We can see for each schools, there are some words with high frequency. For example, capitalism emphasize the topic of economy, so that typical words including "labour","Produce","Price","Money" and so on, while communism emphasize on society and politics such that "worker","class","power","social" dominate their theories.  Feminism stand out becuase words like "women","men","love","sexual" are most common words in their works, which reflects its topic about gender equality. Word "black" also have relatively high frequency in the text, because when feminism talks about gender inequality, black women's situation are naturally emphasized because they not only struggle and suffer from gender inequality but also from racism.
+
+```{R warning=FALSE}
+for (i in 1:length(school_list)){
+  school<- phi_data%>%filter(school == school_list[i])
+  print(school_list[i])
+  text <- school$sentence_lowered
+ text <- Corpus(VectorSource(text))
+ text <- tm_map(text,removeWords,c("one","may","might","also",stopwords(kind = "en")))
+ text <- tm_map(text,removePunctuation)
+ text <- tm_map(text,stemDocument)
+ dtm <<- TermDocumentMatrix(text)
+ m <- as.matrix(dtm)
+ v <- sort(rowSums(m),decreasing = TRUE)
+ d <- data.frame(word = names(v),freq = v)
+ print(head(d,10))
+ set.seed(5243)
+ wordcloud(text,max.words = 200,random.order =FALSE,colors = brewer.pal(8,"Dark2"))
+
+}
+```
+
+## STEP 4 Sentiment analysis by author
+```{r pressure, echo=FALSE,  out.width = '50%'}
+knitr::include_graphics("C:/Users/12973/Desktop/STAT5243/Proj 1/doc/emotion_colors.jpg")
+```
+
+### What emotion dominate Aristotle, Plato, Marx, Smith and Nietzsche's work?
+
+#### We can observe from the plots below that Aristotle's work exuded Anticipation, joy and trust. Also, he reveals some sadness at the same time, this variation possibly result from different work from differetn phase of his life 
+```{R warning=FALSE}
+aristotle_data <- get_author(phi_data,"Aristotle")
+senti_plot(aristotle_data,"Aristotle")
+```
+
+
+#### Plato's work are more involving with sadness and disgust.
+```{R warning=FALSE}
+plato_data <- get_author(phi_data,"Plato")
+senti_plot(plato_data,"Plato")
+```
+
+
+#### Marx's works have more emotion of anticipation and anger.
+```{R warning=FALSE}
+marx_data <- get_author(phi_data,"Marx")
+senti_plot(marx_data,"Marx")
+```
+
+####  Nietzsche's work shows much more sadness and fear than philisopher's above.
+```{R warning=FALSE}
+nietzsche_data <- get_author(phi_data,"Nietzsche")
+senti_plot(nietzsche_data,"Nietzsche")
+```
+
+
+
+```{R warning=FALSE}
+ smith_data <- get_author(phi_data,"Smith")
+senti_plot(smith_data,"Smith")
+```
+
